@@ -661,7 +661,6 @@
 					});
 
 					it("Should forward the given headers",function() {
-
 						oProxyHandler.proxyTunneling(oConfig,oMockGETReq,oMockOriginalRes,oMockNext);
 
 						//Simulate Connection
@@ -695,6 +694,49 @@
 						chai.expect(oMockProxyRes.pipe).to.have.been.called.with(oMockOriginalRes);
 						chai.expect(oMockProxyRes.on).to.have.been.called.exactly(1);
 						chai.expect(oMockOriginalRes.writeHead).to.have.been.called.with(200,undefined);
+						chai.expect(oMockOriginalRes.end).to.have.been.called.exactly(1);
+						chai.expect(oMockHTTP.end).to.have.been.called.exactly(2);
+
+					});
+					it.only("Should not forward the deprecated headers",function() {
+
+						oProxyHandler.proxyTunneling(oConfig,oMockGETReq,oMockOriginalRes,oMockNext);
+
+						//Simulate Connection
+						oMockHTTP["connect"]({}, oMockSocket, {});
+						oMockProxyRes.headers = {
+							connection: "close",
+							dummy: "headerdata"
+					    };
+						//Simulate Response
+						oMockHTTP['respond'](oMockProxyRes);
+
+						chai.expect(JSON.stringify(oProxyHandler._mProtocols['http'].request.__spy.calls[0][0])).to.equal(JSON.stringify({
+							host : 'proxy',
+							port : 8080,
+							method : 'CONNECT',
+							path : 'myServer.com:80',
+							headers : {
+								'dummy_proxy' : 'header',
+								'Host' : 'myServer.com'
+							}
+						}));
+						chai.expect(JSON.stringify(oProxyHandler._mProtocols['http'].request.__spy.calls[1][0])).to.equal(JSON.stringify({
+							host : 'myServer.com',
+							port : 80,
+							socket: oMockSocket,
+							method : 'GET',
+							path : '/testApi/testing.js',
+							headers : {
+								'dummy' : 'header',
+								'Host' : 'myServer.com'
+							}
+						}));
+
+
+						chai.expect(oMockProxyRes.pipe).to.have.been.called.with(oMockOriginalRes);
+						chai.expect(oMockProxyRes.on).to.have.been.called.exactly(1);
+						chai.expect(oMockOriginalRes.writeHead).to.have.been.called.with(200, { dummy: "headerdata" });
 						chai.expect(oMockOriginalRes.end).to.have.been.called.exactly(1);
 						chai.expect(oMockHTTP.end).to.have.been.called.exactly(2);
 
